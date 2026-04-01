@@ -1,8 +1,11 @@
 # Radar Room
 
+> **Note:** Waiting for hardware — only simulation tested so far (30 March 2026).
+
+
 Real-time human presence detection and activity classification using a 24GHz FMCW radar sensor.
 
-A single HLK-LD2450 radar module streams target position and velocity data over UART to a Mac. A Python pipeline parses the binary frames, visualizes them live in a bird's-eye dashboard, and classifies room activity using a trained ML model, all for under EUR 20 of hardware.
+A single HLK-LD2450 radar module streams target position and velocity data over UART to a Mac. A Python pipeline parses the binary frames and visualizes them live in a bird's-eye dashboard, all for under EUR 20 of hardware. An ML activity classifier is planned.
 
 ---
 
@@ -23,7 +26,7 @@ The Python pipeline:
 3. Renders a live bird's-eye visualization with target trails
 4. Classifies the current room activity using a trained scikit-learn model
 
-No camera. No wearable. No cloud. Everything runs locally.
+No camera. No cloud. Everything runs locally.
 
 ---
 
@@ -76,7 +79,7 @@ radar-room/
 ### 1. Clone and set up environment
 
 ```bash
-git clone https://github.com/your-username/radar-room.git
+git clone https://github.com/cspz/radar-room.git
 cd radar-room
 python3 -m venv .venv
 source .venv/bin/activate
@@ -148,7 +151,7 @@ python3 main.py --ml
 
 Supported activity classes: `empty` · `sitting` · `walking` · `two_people`
 
-> ML layer coming soon
+> Planned — not yet implemented.
 
 ---
 
@@ -180,11 +183,6 @@ pip install -r requirements.txt
 - [ ] Multi-sensor triangulation (3x LD2450)
 - [ ] 3D visualization
 
----
-
-## Background
-
-This project is inspired by research into RF-based human sensing, including Carnegie Mellon University's DensePose From WiFi work and the broader field of FMCW radar for indoor human activity recognition. The goal is to build a practical, low-cost sensing system using commodity hardware and open-source Python tooling.
 
 ---
 

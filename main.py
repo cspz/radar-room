@@ -1,11 +1,10 @@
 """
 main.py
-Entry point for the radar-room project.
+Main for the radar-room project.
 
 When hardware arrives:
   1. Set USE_REAL_SENSOR = True
   2. Set SERIAL_PORT to your actual port (run: ls /dev/tty.usb* in terminal)
-  3. Run: python main.py
 """
 
 from __future__ import annotations
@@ -20,14 +19,14 @@ if TYPE_CHECKING:
 
 # ── THE SWITCH ────────────────────────────────────────────────────────────────
 
-USE_REAL_SENSOR = False                       # flip to True when hardware arrives
-SERIAL_PORT     = "/dev/tty.usbserial-0001"   # change to your actual port
+USE_REAL_SENSOR = False                        # change to True if hardware available
+SERIAL_PORT     = "/dev/tty.usbserial-0001"    # change to actual port
 BAUD_RATE       = 256000                       # LD2450 default baud rate
 FPS             = 10.0                         # frames per second
 
 # ── SCENE (only used in simulator mode) ──────────────────────────────────────
 
-SCENE = "walking"    # options: empty / sitting / walking / two_people
+SCENE = "two_people"    # options: empty / sitting / walking / two_people
 
 
 # ── SOURCE FACTORY ────────────────────────────────────────────────────────────

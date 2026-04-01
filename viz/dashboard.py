@@ -1,7 +1,7 @@
 """
 viz/dashboard.py
 Real-time bird's-eye radar visualization.
-Always run via: python main.py
+Always run via main.py
 """
 
 import sys
@@ -18,8 +18,8 @@ sys.path.insert(0, __import__('os').path.dirname(__import__('os').path.dirname(_
 # ── Config ────────────────────────────────────────────────────────────────────
 
 FPS           = 10
-ROOM_W        = 6.0    # metres, left-right
-ROOM_D        = 8.0    # metres, depth
+ROOM_W        = 6.0    # meters, left-right
+ROOM_D        = 8.0    # meters, depth
 TRAIL_LEN     = 30     # past positions to show per target
 TRAIL_ALPHA   = 60     # transparency of trail dots
 
@@ -37,7 +37,7 @@ class Dashboard:
     def __init__(self, source: Any) -> None:
         """
         source: anything with a next_frame() method
-                (Simulator or LD2450 — doesn't matter)
+                (Simulator or LD2450 - doesn't matter)
         """
         self.source  = source
         # One history buffer per target slot (max 3 targets from LD2450)
@@ -80,8 +80,8 @@ class Dashboard:
         p.setAspectLocked(True)
         p.setXRange(-ROOM_W / 2, ROOM_W / 2, padding=0.05)
         p.setYRange(0, ROOM_D, padding=0.05)
-        p.setLabel('bottom', 'x  (metres)')
-        p.setLabel('left',   'y  (metres — distance from sensor)')
+        p.setLabel('bottom', 'x  (meters)')
+        p.setLabel('left',   'y  (meters — distance from sensor)')
 
         # sensor marker at origin
         p.addItem(pg.ScatterPlotItem(
