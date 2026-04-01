@@ -8,7 +8,15 @@ When hardware arrives:
   3. Run: python main.py
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sensor.simulator import Simulator
+
+if TYPE_CHECKING:
+    # Only imported for type checking — LD2450 requires pyserial at runtime
+    from sensor.ld2450 import LD2450
 
 # ── THE SWITCH ────────────────────────────────────────────────────────────────
 
@@ -24,7 +32,7 @@ SCENE = "walking"    # options: empty / sitting / walking / two_people
 
 # ── SOURCE FACTORY ────────────────────────────────────────────────────────────
 
-def make_source():
+def make_source() -> Simulator | LD2450:
     """Returns the active data source — real or simulated."""
     if USE_REAL_SENSOR:
         from sensor.ld2450 import LD2450
@@ -37,7 +45,7 @@ def make_source():
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
-def main():
+def main() -> None:
     source = make_source()
     from viz.dashboard import Dashboard
     print("[main] launching dashboard — close window to quit")

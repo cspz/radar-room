@@ -5,6 +5,8 @@ Always run via: python main.py
 """
 
 import sys
+from typing import Any
+
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
@@ -32,13 +34,14 @@ TARGET_COLORS = [
 
 class Dashboard:
 
-    def __init__(self, source):
+    def __init__(self, source: Any) -> None:
         """
         source: anything with a next_frame() method
                 (Simulator or LD2450 — doesn't matter)
         """
         self.source  = source
-        self.history = [[] for _ in range(3)]
+        # One history buffer per target slot (max 3 targets from LD2450)
+        self.history: list[list[tuple[float, float]]] = [[] for _ in range(3)]
 
         # Qt app + window
         self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
@@ -50,9 +53,9 @@ class Dashboard:
         self.plot = self.win.addPlot(title="")
         self._setup_plot()
 
-        # scatter items — trail + current dot per target slot
-        self.trail_items  = []
-        self.target_items = []
+        # Two scatter layers per target: semi-transparent trail dots + solid current dot
+        self.trail_items:  list[pg.ScatterPlotItem] = []
+        self.target_items: list[pg.ScatterPlotItem] = []
         for color in TARGET_COLORS:
             trail = pg.ScatterPlotItem(size=6,  pen=None,
                                        brush=pg.mkBrush(*color[:3], TRAIL_ALPHA))
@@ -72,7 +75,7 @@ class Dashboard:
         self.timer.timeout.connect(self._update)
         self.timer.start(int(1000 / FPS))
 
-    def _setup_plot(self):
+    def _setup_plot(self) -> None:
         p = self.plot
         p.setAspectLocked(True)
         p.setXRange(-ROOM_W / 2, ROOM_W / 2, padding=0.05)
@@ -106,26 +109,29 @@ class Dashboard:
             lbl.setPos(0, r)
             p.addItem(lbl)
 
-    def _update(self):
+    def _update(self) -> None:
         frame = self.source.next_frame()
         n     = len(frame.targets)
 
         for slot in range(3):
             if slot < n:
                 t = frame.targets[slot]
+                # Append current position to the rolling trail buffer
                 self.history[slot].append((t.x, t.y))
                 if len(self.history[slot]) > TRAIL_LEN:
                     self.history[slot].pop(0)
+                # Draw trail from all but the most-recent point (which gets the big dot)
                 hx = [p[0] for p in self.history[slot][:-1]]
                 hy = [p[1] for p in self.history[slot][:-1]]
                 self.trail_items[slot].setData(hx, hy)
                 self.target_items[slot].setData([t.x], [t.y])
             else:
+                # Target slot is empty — clear its visuals and history
                 self.trail_items[slot].setData([], [])
                 self.target_items[slot].setData([], [])
                 self.history[slot].clear()
 
-        # status bar — show scene name if simulator, just targets if real
+        # Show scene name when using the simulator; fall back to 'live' for real hardware
         scene_str = getattr(self.source, 'scene', 'live').replace('_', ' ')
         if n == 0:
             status = f"<span style='color:#888'>scene: {scene_str} &nbsp;|&nbsp; no targets</span>"
@@ -140,6 +146,6 @@ class Dashboard:
                      " &nbsp; ".join(parts)
         self.label.setText(status)
 
-    def run(self):
+    def run(self) -> None:
         self.win.show()
         sys.exit(self.app.exec())

@@ -37,13 +37,13 @@ class LD2450:
     Drop-in replacement for Simulator — same next_frame() and stream() interface.
     """
 
-    def __init__(self, port: str, baud: int = 256000):
+    def __init__(self, port: str, baud: int = 256000) -> None:
         self.port  = port
         self.baud  = baud
         self._ser  = None
         self._open()
 
-    def _open(self):
+    def _open(self) -> None:
         try:
             self._ser = serial.Serial(
                 port      = self.port,
@@ -145,10 +145,10 @@ class LD2450:
         while True:
             yield self.next_frame()
 
-    def close(self):
+    def close(self) -> None:
         if self._ser and self._ser.is_open:
             self._ser.close()
             print(f"[ld2450] closed {self.port}")
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()

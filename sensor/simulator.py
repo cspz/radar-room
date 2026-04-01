@@ -8,6 +8,7 @@ This goes in the sensor/ folder.
 import numpy as np
 import time
 from dataclasses import dataclass
+from typing import Generator
 
 # ── Data structure ────────────────────────────────────────────────────────────
 
@@ -25,9 +26,9 @@ class Frame:
 # ── Individual scene simulators ───────────────────────────────────────────────
 
 class WalkingPerson:
-    #One person walking back and forth across the room.
+    """One person walking back and forth across the room."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.x = 0.0
         self.y = 2.5
         self.direction = 1.0      # +1 or -1
@@ -46,9 +47,9 @@ class WalkingPerson:
 
 
 class SittingPerson:
-    #One person sitting still — tiny chest movement from breathing.
+    """One person sitting still — tiny chest movement from breathing."""
 
-    def __init__(self, x=0.2, y=1.8):
+    def __init__(self, x: float = 0.2, y: float = 1.8) -> None:
         self.x = x
         self.y = y
         self.breath_phase = np.random.uniform(0, 2 * np.pi)
@@ -68,17 +69,19 @@ class SittingPerson:
 SCENES = ["empty", "sitting", "walking", "two_people"]
 
 class Simulator:
-    # Main simulator. Call next_frame() in a loop to get frames.
-    # Change scene at any time with set_scene().
+    """
+    Main simulator. Call next_frame() in a loop to get frames.
+    Change scene at any time with set_scene().
+    """
 
-    def __init__(self, scene: str = "walking", fps: float = 10.0):
+    def __init__(self, scene: str = "walking", fps: float = 10.0) -> None:
         self.fps = fps
         self.dt = 1.0 / fps
         self.scene = None
         self._actors = []
         self.set_scene(scene)
 
-    def set_scene(self, scene: str):
+    def set_scene(self, scene: str) -> None:
         assert scene in SCENES, f"Scene must be one of {SCENES}"
         self.scene = scene
         if scene == "empty":
@@ -100,7 +103,7 @@ class Simulator:
         # sensor always adds a little ghost noise — filter anything too faint
         return Frame(targets=targets, timestamp=time.time())
 
-    def stream(self):
+    def stream(self) -> Generator[Frame, None, None]:
         """Generator — yields frames at self.fps rate. Use in a for loop."""
         while True:
             yield self.next_frame()
