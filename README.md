@@ -33,7 +33,7 @@ No camera. No cloud. Everything runs locally.
 
 The HLK-LD2450 is a 24GHz FMCW (Frequency Modulated Continuous Wave) radar. It continuously broadcasts radio chirps that bounce off people in the room. By analyzing reflected signals, it extracts X/Y position and radial velocity of up to 3 targets simultaneously, streaming binary frames over UART at 10Hz.
 
-In simplified terms: beat frequency relates to range, while Doppler shift relates to radial velocity. There is no image stream, which is generally more privacy-preserving than cameras, but motion and occupancy data are still sensitive.
+In simplified terms: beat frequency relates to range, while Doppler shift relates to radial velocity. 
 
 The Python pipeline:
 1. Reads and parses binary frames from the sensor via USB serial
