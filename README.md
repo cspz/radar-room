@@ -6,7 +6,7 @@
 
 
 
-A room that sees without cameras. Real-time human presence detection and activity classification using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware. 
+A room that sees without cameras. Real-time human presence and motion visualization using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware.
 
 > **Note:** Waiting for hardware — tested only simulation as of 30 March 2026.
 
@@ -31,15 +31,15 @@ No camera. No cloud. Everything runs locally.
 
 ## How it works
 
-The HLK-LD2450 is a 24GHz FMCW (Frequency Modulated Continuous Wave) radar. It continuously broadcasts radio chirps that bounce off people in the room. By analyzing the phase and frequency shift of the reflected signals it extracts X/Y position and radial velocity of up to 3 targets simultaneously, streaming binary frames over UART at 10Hz.
+The HLK-LD2450 is a 24GHz FMCW (Frequency Modulated Continuous Wave) radar. It continuously broadcasts radio chirps that bounce off people in the room. By analyzing reflected signals, it extracts X/Y position and radial velocity of up to 3 targets simultaneously, streaming binary frames over UART at 10Hz.
 
-The beat frequency between transmitted and reflected chirp encodes range directly — closer objects produce a lower beat tone, further ones a higher one. Doppler shift on top of that gives velocity. No image, no privacy risk, just physics.
+In simplified terms: beat frequency relates to range, while Doppler shift relates to radial velocity. There is no image stream, which is generally more privacy-preserving than cameras, but motion and occupancy data are still sensitive.
 
 The Python pipeline:
 1. Reads and parses binary frames from the sensor via USB serial
 2. Converts raw millimetre values to metres
 3. Renders a live bird's-eye visualization with target trails
-4. Classifies the current room activity using a trained scikit-learn model
+4. (Planned) Classifies room activity using a trained scikit-learn model
 
 ---
 
@@ -151,20 +151,14 @@ python3 main.py
 
 ## ML activity classifier
 
-```bash
-# record labelled data
-python3 ml/collect.py --label walking --duration 60
-
-# train
-python3 ml/train.py
-
-# run with live inference
-python3 main.py --ml
-```
-
-Supported classes: `empty` · `sitting` · `walking` · `two_people`
-
 Planned — not yet implemented.
+
+Target classes: `empty` · `sitting` · `walking` · `two_people`
+
+Planned workflow:
+1. Record labelled sessions (`ml/collect.py`)
+2. Train a classifier (`ml/train.py`)
+3. Run live inference overlay (`ml/inference.py` + dashboard integration)
 
 ---
 
@@ -188,6 +182,11 @@ pyserial
 numpy
 pyqtgraph
 PyQt6
+```
+
+Planned ML dependency (when classifier work starts):
+
+```
 scikit-learn
 ```
 
