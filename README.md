@@ -1,7 +1,7 @@
 # radar-room
 
 <div align="left">
-	<img src="docs/assets/radar-room-banner.png" alt="radar-room banner" width="60%">
+	<img src="docs/assets/radar-room-banner.png" alt="radar-room banner" width="80%">
 </div>
 
 
@@ -23,7 +23,7 @@ No camera. No cloud. Everything runs locally.
 ## Simulation Demo
 
 <div align="left">
-	<img src="docs/assets/demo-radar-room.gif" alt="radar-room demo animation" width="80%">
+	<img src="docs/assets/demo-radar-room.gif" alt="radar-room demo animation" width="100%">
 </div>
 
 
@@ -53,7 +53,7 @@ The Python pipeline:
 | **Total** | | **~€18** |
 
 <div align="left">
-	<img src="docs/assets/radar-room-hardware.jpeg" alt="radar-room hardware setup" width="50%">
+	<img src="docs/assets/radar-room-hardware.jpeg" alt="radar-room hardware setup" width="60%">
 </div>
 
 ### Wiring
