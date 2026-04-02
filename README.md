@@ -177,7 +177,6 @@ Planned — not yet implemented.
 - ⬜ Live inference overlay on dashboard
 - ⬜ Multi-sensor triangulation (3× LD2450)
 - ⬜ 3D visualization
-- ⬜ WiFi CSI as second sensing modality — same physics, uses ambient infrastructure, no dedicated radar hardware
 - ⬜ Sensor fusion — mmWave + WiFi for room-scale spatial mapping and precise localization
 
 ---
