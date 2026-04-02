@@ -1,47 +1,64 @@
-# Radar Room
+# radar-room
 
-> **Note:** Waiting for hardware — only simulation tested so far (30 March 2026).
+<div align="left">
+	<img src="docs/assets/radar-room-banner.png" alt="radar-room banner" width="60%">
+</div>
 
 
-Real-time human presence detection and activity classification using a 24GHz FMCW radar sensor.
 
-A single HLK-LD2450 radar module streams target position and velocity data over UART to a Mac. A Python pipeline parses the binary frames and visualizes them live in a bird's-eye dashboard, all for under EUR 20 of hardware. An ML activity classifier is planned.
+A room that sees without cameras. Real-time human presence detection and activity classification using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware. 
+
+> **Note:** Waiting for hardware — tested only simulation as of 30 March 2026.
+
 
 ---
 
-## Demo
+## What it does
 
-> live demo GIF goes here once hardware arrives
+A single HLK-LD2450 radar module streams target position and velocity data over UART to a Mac. A Python pipeline parses the binary frames and renders them live in a bird's-eye dashboard. An ML activity classifier is planned.
+
+No camera. No cloud. Everything runs locally.
+
+
+## Simulation Demo
+
+<div align="left">
+	<img src="docs/assets/demo-radar-room.gif" alt="radar-room demo animation" width="80%">
+</div>
+
 
 ---
 
 ## How it works
 
-The HLK-LD2450 is a 24GHz FMCW (Frequency Modulated Continuous Wave) radar sensor. It continuously broadcasts radio chirps that bounce off people in the room. By analyzing the reflected signals it computes the X/Y position and radial speed of up to 3 targets simultaneously, and streams this as binary frames over UART at 10Hz.
+The HLK-LD2450 is a 24GHz FMCW (Frequency Modulated Continuous Wave) radar. It continuously broadcasts radio chirps that bounce off people in the room. By analyzing the phase and frequency shift of the reflected signals it extracts X/Y position and radial velocity of up to 3 targets simultaneously, streaming binary frames over UART at 10Hz.
+
+The beat frequency between transmitted and reflected chirp encodes range directly — closer objects produce a lower beat tone, further ones a higher one. Doppler shift on top of that gives velocity. No image, no privacy risk, just physics.
 
 The Python pipeline:
-
 1. Reads and parses binary frames from the sensor via USB serial
 2. Converts raw millimetre values to metres
 3. Renders a live bird's-eye visualization with target trails
 4. Classifies the current room activity using a trained scikit-learn model
-
-No camera. No cloud. Everything runs locally.
 
 ---
 
 ## Hardware
 
 | Component | Details | Price |
-| --- | --- | --- |
+|---|---|---|
 | HLK-LD2450 | 24GHz FMCW radar, ±60° FOV, 8m range | ~€11 |
 | ESP32 WROOM-32D | CP2102 USB-UART bridge, USB-C | ~€5 |
 | Jumper wires | Female-female, 20cm | ~€2 |
 | **Total** | | **~€18** |
 
+<div align="left">
+	<img src="docs/assets/radar-room-hardware.jpeg" alt="radar-room hardware setup" width="50%">
+</div>
+
 ### Wiring
 
-```text
+```
 LD2450        ESP32
 ──────────────────────
 VCC (red)  →  VIN
@@ -56,7 +73,7 @@ ESP32 connects to Mac via USB-C. No soldering required.
 
 ## Project structure
 
-```text
+```
 radar-room/
 ├── sensor/
 │   ├── simulator.py   # realistic fake data for development without hardware
@@ -76,7 +93,7 @@ radar-room/
 
 ## Quickstart
 
-### 1. Clone and set up environment
+### 1. Clone and set up
 
 ```bash
 git clone https://github.com/cspz/radar-room.git
@@ -110,7 +127,7 @@ Then in `main.py` set:
 
 ```python
 USE_REAL_SENSOR = True
-SERIAL_PORT     = "/dev/tty.usbserial-XXXX"   # your actual port
+SERIAL_PORT     = "/dev/tty.usbserial-XXXX"
 ```
 
 Run:
@@ -123,41 +140,51 @@ python3 main.py
 
 ## Dashboard
 
-The visualization shows:
-
-- **White triangle** — sensor position at origin
-- **Blue cone** — 60° field of view
-- **Range rings** — at 2m, 4m, 6m, 8m
-- **Coloured dots** — live target positions (green / blue / red for targets 1-2-3)
-- **Trails** — last 30 positions per target
-- **Status bar** — real-time coordinates and speed per target
+- White triangle — sensor position at origin
+- Blue cone — 60° field of view
+- Range rings — at 2m, 4m, 6m, 8m
+- Coloured dots — live target positions (green / blue / red for targets 1–2–3)
+- Trails — last 30 positions per target
+- Status bar — real-time coordinates and speed per target
 
 ---
 
 ## ML activity classifier
 
-Record labelled sessions, train a classifier, run live inference:
-
 ```bash
-# record data
+# record labelled data
 python3 ml/collect.py --label walking --duration 60
 
-# train model
+# train
 python3 ml/train.py
 
 # run with live inference
 python3 main.py --ml
 ```
 
-Supported activity classes: `empty` · `sitting` · `walking` · `two_people`
+Supported classes: `empty` · `sitting` · `walking` · `two_people`
 
-> Planned — not yet implemented.
+Planned — not yet implemented.
+
+---
+
+## Roadmap
+
+- ✅ Simulator with realistic physics-based scenes
+- ✅ Binary UART parser for HLK-LD2450
+- ✅ Real-time bird's-eye dashboard
+- ⬜ ML activity classifier
+- ⬜ Live inference overlay on dashboard
+- ⬜ Multi-sensor triangulation (3× LD2450)
+- ⬜ 3D visualization
+- ⬜ WiFi CSI as second sensing modality — same physics, uses ambient infrastructure, no dedicated radar hardware
+- ⬜ Sensor fusion — mmWave + WiFi for room-scale spatial mapping and precise localization
 
 ---
 
 ## Dependencies
 
-```text
+```
 pyserial
 numpy
 pyqtgraph
@@ -165,24 +192,9 @@ PyQt6
 scikit-learn
 ```
 
-Install all:
-
 ```bash
 pip install -r requirements.txt
 ```
-
----
-
-## Roadmap
-
-- [x] Simulator with realistic physics-based scenes
-- [x] Binary UART parser for HLK-LD2450
-- [x] Real-time bird's-eye dashboard
-- [ ] ML activity classifier
-- [ ] Live inference overlay on dashboard
-- [ ] Multi-sensor triangulation (3x LD2450)
-- [ ] 3D visualization
-
 
 ---
 
