@@ -21,7 +21,8 @@ FPS           = 10
 ROOM_W        = 6.0    # meters, left-right
 ROOM_D        = 8.0    # meters, depth
 TRAIL_LEN     = 30     # past positions to show per target
-TRAIL_ALPHA   = 60     # transparency of trail dots
+TRAIL_ALPHA_MIN = 25   # oldest trail point alpha
+TRAIL_ALPHA_MAX = 150  # newest trail point alpha
 
 TARGET_COLORS = [
     (50,  205,  50, 255),   # green — target 1
@@ -57,8 +58,7 @@ class Dashboard:
         self.trail_items:  list[pg.ScatterPlotItem] = []
         self.target_items: list[pg.ScatterPlotItem] = []
         for color in TARGET_COLORS:
-            trail = pg.ScatterPlotItem(size=6,  pen=None,
-                                       brush=pg.mkBrush(*color[:3], TRAIL_ALPHA))
+            trail = pg.ScatterPlotItem(size=6, pen=None)
             dot   = pg.ScatterPlotItem(size=16, pen=pg.mkPen('w', width=1),
                                        brush=pg.mkBrush(*color))
             self.plot.addItem(trail)
@@ -123,7 +123,14 @@ class Dashboard:
                 # Draw trail from all but the most-recent point (which gets the big dot)
                 hx = [p[0] for p in self.history[slot][:-1]]
                 hy = [p[1] for p in self.history[slot][:-1]]
-                self.trail_items[slot].setData(hx, hy)
+                if hx:
+                    base = TARGET_COLORS[slot][:3]
+                    # Oldest points are fainter; most recent trail points are brighter.
+                    alphas = np.linspace(TRAIL_ALPHA_MIN, TRAIL_ALPHA_MAX, len(hx), dtype=int)
+                    brushes = [pg.mkBrush(base[0], base[1], base[2], int(a)) for a in alphas]
+                    self.trail_items[slot].setData(hx, hy, brush=brushes)
+                else:
+                    self.trail_items[slot].setData([], [])
                 self.target_items[slot].setData([t.x], [t.y])
             else:
                 # Target slot is empty — clear its visuals and history
