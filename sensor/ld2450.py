@@ -47,6 +47,7 @@ class LD2450:
         self.port  = port
         self.baud  = baud
         self._ser  = None
+        self._rx_buf = bytearray()
         self._open()
 
     def _open(self) -> None:
@@ -57,7 +58,7 @@ class LD2450:
                 bytesize  = serial.EIGHTBITS,
                 parity    = serial.PARITY_NONE,
                 stopbits  = serial.STOPBITS_ONE,
-                timeout   = 1.0
+                timeout   = 0.05
             )
             print(f"[ld2450] opened {self.port} at {self.baud} baud")
         except serial.SerialException as e:
@@ -72,35 +73,41 @@ class LD2450:
         Scans the serial stream for the next valid frame.
         Returns raw 28-byte frame or None on timeout.
         """
-        buf = b''
-        deadline = time.time() + 2.0   # 2 second timeout
+        deadline = time.time() + 0.5
 
         while time.time() < deadline:
-            byte = self._ser.read(1)
-            if not byte:
-                continue
-            buf += byte
+            chunk = self._ser.read(self._ser.in_waiting or 1)
+            if chunk:
+                self._rx_buf.extend(chunk)
 
-            # keep buffer trimmed
-            if len(buf) > FRAME_LENGTH * 2:
-                buf = buf[-FRAME_LENGTH:]
+            # keep buffer bounded while still preserving enough history
+            if len(self._rx_buf) > FRAME_LENGTH * 8:
+                del self._rx_buf[:-FRAME_LENGTH * 4]
 
-            # look for header
-            if FRAME_HEADER in buf:
-                start = buf.index(FRAME_HEADER)
-                buf   = buf[start:]           # trim everything before header
+            while True:
+                start = self._rx_buf.find(FRAME_HEADER)
+                if start < 0:
+                    # Keep just enough tail bytes to catch split header patterns.
+                    keep = len(FRAME_HEADER) - 1
+                    if len(self._rx_buf) > keep:
+                        del self._rx_buf[:-keep]
+                    break
 
-                # wait until we have a full frame
-                if len(buf) >= FRAME_LENGTH:
-                    candidate = buf[:FRAME_LENGTH]
-                    # verify footer
-                    if candidate[-2:] == FRAME_FOOTER:
-                        return candidate
-                    else:
-                        # bad frame — discard header byte and try again
-                        buf = buf[1:]
+                if start > 0:
+                    del self._rx_buf[:start]
 
-        return None   # timeout
+                if len(self._rx_buf) < FRAME_LENGTH:
+                    break
+
+                candidate = bytes(self._rx_buf[:FRAME_LENGTH])
+                if candidate[-2:] == FRAME_FOOTER:
+                    del self._rx_buf[:FRAME_LENGTH]
+                    return candidate
+
+                # Bad frame alignment: slide by one byte and continue searching.
+                del self._rx_buf[0]
+
+        return None
 
     @staticmethod
     def _parse_target(data: bytes, offset: int) -> Target | None:

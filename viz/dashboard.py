@@ -7,6 +7,7 @@ Always run via main.py
 import sys
 import threading
 import queue
+import math
 from typing import Any
 
 import numpy as np
@@ -25,6 +26,9 @@ ROOM_D        = 8.0    # meters, depth
 TRAIL_LEN     = 30     # past positions to show per target
 TRAIL_ALPHA_MIN = 25   # oldest trail point alpha
 TRAIL_ALPHA_MAX = 150  # newest trail point alpha
+EMA_ALPHA     = 0.35   # lower = smoother but more lag
+TRACK_MAX_DIST = 1.2   # meters; slot assignment gate between frames
+MISS_GRACE_FRAMES = 3  # keep last known point this many missed updates
 
 TARGET_COLORS = [
     (50,  205,  50, 255),   # green — target 1
@@ -45,6 +49,9 @@ class Dashboard:
         self.source  = source
         # One history buffer per target slot (max 3 targets from LD2450)
         self.history: list[list[tuple[float, float]]] = [[] for _ in range(3)]
+        # Per-slot smoothed position state for EMA filtering
+        self.smoothed: list[tuple[float, float] | None] = [None, None, None]
+        self.missed_frames: list[int] = [0, 0, 0]
 
         # Frame queue: background thread pushes, UI thread pops (non-blocking)
         self.frame_queue: queue.Queue = queue.Queue(maxsize=2)
@@ -91,11 +98,9 @@ class Dashboard:
         and pushes them to the frame queue for the UI thread.
         """
         print("[dashboard] frame reader thread started")
-        frame_count = 0
         while not self._stop_event.is_set():
             try:
                 frame = self.source.next_frame()
-                frame_count += 1
                 # Drop oldest frame if queue is full (keep latest data flowing)
                 try:
                     self.frame_queue.put_nowait(frame)
@@ -105,10 +110,6 @@ class Dashboard:
                     except queue.Empty:
                         pass
                     self.frame_queue.put_nowait(frame)
-                
-                # Log every 10th frame
-                if frame_count % 10 == 0:
-                    print(f"[dashboard] reader: {frame_count} frames read, queue size: {self.frame_queue.qsize()}, targets: {len(frame.targets)}")
             except Exception as e:
                 print(f"[dashboard] frame reader ERROR: {type(e).__name__}: {e}")
                 import traceback
@@ -151,22 +152,39 @@ class Dashboard:
 
     def _update(self) -> None:
         """
-        UI timer callback (non-blocking). Fetches the latest frame from the queue.
+        UI timer callback (non-blocking). Drains queue and renders only newest frame.
         Runs on the main Qt thread.
         """
-        try:
-            frame = self.frame_queue.get_nowait()
-        except queue.Empty:
+        frame = None
+        while True:
+            try:
+                # Keep only the most recent frame to minimize visual latency.
+                frame = self.frame_queue.get_nowait()
+            except queue.Empty:
+                break
+
+        if frame is None:
             # No new frame yet — skip update, use last known state
             return
 
         n     = len(frame.targets)
+        assigned = self._assign_targets_to_slots(frame.targets)
+        display_positions: list[tuple[float, float, float]] = []
 
         for slot in range(3):
-            if slot < n:
-                t = frame.targets[slot]
+            t = assigned[slot]
+            if t is not None:
+                prev = self.smoothed[slot]
+                if prev is None:
+                    sx, sy = t.x, t.y
+                else:
+                    sx = EMA_ALPHA * t.x + (1.0 - EMA_ALPHA) * prev[0]
+                    sy = EMA_ALPHA * t.y + (1.0 - EMA_ALPHA) * prev[1]
+                self.smoothed[slot] = (sx, sy)
+                self.missed_frames[slot] = 0
+
                 # Append current position to the rolling trail buffer
-                self.history[slot].append((t.x, t.y))
+                self.history[slot].append((sx, sy))
                 if len(self.history[slot]) > TRAIL_LEN:
                     self.history[slot].pop(0)
                 # Draw trail from all but the most-recent point (which gets the big dot)
@@ -180,12 +198,21 @@ class Dashboard:
                     self.trail_items[slot].setData(hx, hy, brush=brushes)
                 else:
                     self.trail_items[slot].setData([], [])
-                self.target_items[slot].setData([t.x], [t.y])
+                self.target_items[slot].setData([sx], [sy])
+                display_positions.append((sx, sy, t.speed))
             else:
-                # Target slot is empty — clear its visuals and history
-                self.trail_items[slot].setData([], [])
-                self.target_items[slot].setData([], [])
-                self.history[slot].clear()
+                # Briefly hold last position to mask one-off sensor misses.
+                self.missed_frames[slot] += 1
+                if self.smoothed[slot] is not None and self.missed_frames[slot] <= MISS_GRACE_FRAMES:
+                    sx, sy = self.smoothed[slot]
+                    self.target_items[slot].setData([sx], [sy])
+                else:
+                    # Target slot is truly empty — clear visuals and state
+                    self.trail_items[slot].setData([], [])
+                    self.target_items[slot].setData([], [])
+                    self.history[slot].clear()
+                    self.smoothed[slot] = None
+                    self.missed_frames[slot] = 0
 
         # Show scene name when using the simulator; fall back to 'live' for real hardware
         scene_str = getattr(self.source, 'scene', 'live').replace('_', ' ')
@@ -195,12 +222,48 @@ class Dashboard:
             colors = ['#32cd32', '#1e90ff', '#ff5050']
             parts  = [
                 f"<span style='color:{colors[i]}'>"
-                f"T{i+1}: ({t.x:+.2f}, {t.y:.2f})m &nbsp;{t.speed:+.2f}m/s</span>"
-                for i, t in enumerate(frame.targets)
+                f"T{i+1}: ({pos[0]:+.2f}, {pos[1]:.2f})m &nbsp;{pos[2]:+.2f}m/s</span>"
+                for i, pos in enumerate(display_positions)
             ]
             status = f"<span style='color:#888'>scene: {scene_str} &nbsp;|&nbsp; </span>" + \
                      " &nbsp; ".join(parts)
         self.label.setText(status)
+
+    def _assign_targets_to_slots(self, targets: list[Any]) -> list[Any | None]:
+        """
+        Keeps slot identity stable frame-to-frame by assigning detections to
+        prior smoothed positions using nearest-neighbor matching.
+        """
+        assigned: list[Any | None] = [None, None, None]
+        used_targets: set[int] = set()
+
+        # Prefer continuity for slots that already have a previous position.
+        candidates: list[tuple[float, int, int]] = []
+        for slot in range(3):
+            prev = self.smoothed[slot]
+            if prev is None:
+                continue
+            for idx, t in enumerate(targets):
+                d = math.hypot(t.x - prev[0], t.y - prev[1])
+                candidates.append((d, slot, idx))
+
+        for d, slot, idx in sorted(candidates, key=lambda x: x[0]):
+            if d > TRACK_MAX_DIST:
+                continue
+            if assigned[slot] is not None or idx in used_targets:
+                continue
+            assigned[slot] = targets[idx]
+            used_targets.add(idx)
+
+        # Fill empty slots with any remaining targets.
+        leftovers = [targets[i] for i in range(len(targets)) if i not in used_targets]
+        li = 0
+        for slot in range(3):
+            if assigned[slot] is None and li < len(leftovers):
+                assigned[slot] = leftovers[li]
+                li += 1
+
+        return assigned
 
     def run(self) -> None:
         """
