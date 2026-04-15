@@ -22,9 +22,9 @@ from sensor.simulator import Target, Frame   # reuse same data structures
 
 # ── Protocol constants ────────────────────────────────────────────────────────
 
-FRAME_HEADER = bytes([0xFD, 0xFC, 0xFB, 0xFA])
-FRAME_FOOTER = bytes([0x04, 0x03, 0x02, 0x01])
-FRAME_LENGTH = 30          # total bytes per frame
+FRAME_HEADER = bytes([0xAA, 0xFF, 0x03, 0x00])
+FRAME_FOOTER = bytes([0x55, 0xCC])
+FRAME_LENGTH = 28          # total bytes per frame
 TARGET_COUNT = 3           # max targets per frame
 TARGET_BYTES = 8           # bytes per target
 
@@ -88,7 +88,7 @@ class LD2450:
                 if len(buf) >= FRAME_LENGTH:
                     candidate = buf[:FRAME_LENGTH]
                     # verify footer
-                    if candidate[-4:] == FRAME_FOOTER:
+                    if candidate[-2:] == FRAME_FOOTER:
                         return candidate
                     else:
                         # bad frame — discard header byte and try again
