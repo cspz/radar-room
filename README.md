@@ -83,7 +83,7 @@ The CP2102 on the ESP32 dev board is hardwired to GPIO1/GPIO3, not GPIO16/17. Yo
 3. Go to `Tools → Board → Boards Manager`, search `esp32 by Espressif Systems` and install
 4. Select `Tools → Board → ESP32 Arduino → ESP32 Dev Module`
 5. Select `Tools → Port → /dev/cu.usbserial-0001`
-6. Flash this sketch:
+6. Open `arduino/radar_passthrough/radar_passthrough.ino` from this repo and flash it:
 
 ```cpp
 #include <HardwareSerial.h>
@@ -109,6 +109,9 @@ Once flashed, the ESP32 acts as a permanent transparent bridge. You never need t
 
 ```
 radar-room/
+├── arduino/
+│   └── radar_passthrough/
+│       └── radar_passthrough.ino   # ESP32 firmware — transparent UART bridge
 ├── sensor/
 │   ├── simulator.py   # realistic fake data for development without hardware
 │   └── ld2450.py      # real UART parser for HLK-LD2450
