@@ -6,10 +6,15 @@ Reads binary frames from the sensor over UART and outputs
 the same Frame + Target objects as the simulator.
 
 Protocol reference: HLK-LD2450 datasheet
-  - Frame header:  FD FC FB FA  (4 bytes)
-  - Frame footer:  04 03 02 01  (4 bytes)
-  - Frame length:  30 bytes total
+  - Frame header:  AA FF 03 00  (4 bytes)
+  - Frame footer:  55 CC        (2 bytes)
+  - Frame length:  28 bytes total
   - Up to 3 targets per frame, each 8 bytes
+
+Encoding note: x, y, and speed use sign-magnitude (not two's complement).
+  MSB = sign bit, lower 15 bits = magnitude.
+  Y is reported negative for targets in front of the sensor.
+  Speed is the Doppler radial velocity in cm/s, computed internally by the sensor.
 """
 
 import serial
@@ -59,13 +64,13 @@ class LD2450:
             raise RuntimeError(
                 f"[ld2450] could not open {self.port}\n"
                 f"  → {e}\n"
-                f"  → run:  ls /dev/tty.usb*  to find your port"
+                f"  → run:  ls /dev/cu.usb*  to find your port"
             )
 
     def _read_frame_bytes(self) -> bytes | None:
         """
         Scans the serial stream for the next valid frame.
-        Returns raw 30-byte frame or None on timeout.
+        Returns raw 28-byte frame or None on timeout.
         """
         buf = b''
         deadline = time.time() + 2.0   # 2 second timeout
@@ -104,23 +109,25 @@ class LD2450:
         Returns None if the slot is empty (all zeros).
 
         LD2450 target format (little-endian):
-          bytes 0-1: x  (sign-magnitude uint16; MSB=1 → negative/left)
-          bytes 2-3: y  (sign-magnitude uint16; MSB=1 → in front of sensor)
-          bytes 4-5: speed (signed int16, mm/s)
+          bytes 0-1: x     (sign-magnitude uint16, mm; MSB=1 → negative/left)
+          bytes 2-3: y     (sign-magnitude uint16, mm; MSB=1 → in front of sensor)
+          bytes 4-5: speed (sign-magnitude uint16, cm/s; MSB=1 → moving away)
           bytes 6-7: resolution (uint16, ignored)
 
-        The LD2450 encodes x and y in sign-magnitude, not two's complement.
+        All three measured fields use sign-magnitude encoding (not two's complement).
         Y is negative in the sensor's convention for targets in front; we negate
         it so the dashboard's [0, ROOM_D] y-axis shows forward distance correctly.
+        Speed is the Doppler radial velocity computed by the LD2450 internally.
         """
-        raw_x, raw_y, v_mm, _ = struct.unpack_from('<HHhH', data, offset)
+        raw_x, raw_y, raw_v, _ = struct.unpack_from('<HHHH', data, offset)
 
         def _sm(v: int) -> int:
             """Sign-magnitude decode: MSB is sign bit, lower 15 bits are magnitude."""
             return (-1 if v & 0x8000 else 1) * (v & 0x7FFF)
 
-        x_mm = _sm(raw_x)
-        y_mm = -_sm(raw_y)   # sensor convention: negative y = in front → negate for display
+        x_mm  = _sm(raw_x)
+        y_mm  = -_sm(raw_y)   # sensor convention: negative y = in front → negate for display
+        v_cms = _sm(raw_v)    # cm/s; negative = moving away from sensor
 
         # Empty slot
         if x_mm == 0 and y_mm == 0:
@@ -131,9 +138,9 @@ class LD2450:
             return None
 
         return Target(
-            x     = round(x_mm / 1000.0, 3),   # mm → metres
-            y     = round(y_mm / 1000.0, 3),
-            speed = round(v_mm / 1000.0, 3)
+            x     = round(x_mm  / 1000.0, 3),   # mm  → metres
+            y     = round(y_mm  / 1000.0, 3),
+            speed = round(v_cms / 100.0,  3)     # cm/s → m/s
         )
 
     def next_frame(self) -> Frame:
