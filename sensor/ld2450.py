@@ -1,6 +1,7 @@
 """
 sensor/ld2450.py
 Real LD2450 hardware parser.
+
 Reads binary frames from the sensor over UART and outputs
 the same Frame + Target objects as the simulator.
 
@@ -100,18 +101,34 @@ class LD2450:
     def _parse_target(data: bytes, offset: int) -> Target | None:
         """
         Parses one 8-byte target block starting at offset.
-        Returns None if target is empty (all zeros).
+        Returns None if the slot is empty (all zeros).
 
         LD2450 target format (little-endian):
-          bytes 0-1: x  (signed int16, millimetres)
-          bytes 2-3: y  (signed int16, millimetres)
+          bytes 0-1: x  (sign-magnitude uint16; MSB=1 → negative/left)
+          bytes 2-3: y  (sign-magnitude uint16; MSB=1 → in front of sensor)
           bytes 4-5: speed (signed int16, mm/s)
           bytes 6-7: resolution (uint16, ignored)
-        """
-        x_mm, y_mm, v_mm, _ = struct.unpack_from('<hhhH', data, offset)
 
-        if x_mm == 0 and y_mm == 0 and v_mm == 0:
-            return None   # empty slot
+        The LD2450 encodes x and y in sign-magnitude, not two's complement.
+        Y is negative in the sensor's convention for targets in front; we negate
+        it so the dashboard's [0, ROOM_D] y-axis shows forward distance correctly.
+        """
+        raw_x, raw_y, v_mm, _ = struct.unpack_from('<HHhH', data, offset)
+
+        def _sm(v: int) -> int:
+            """Sign-magnitude decode: MSB is sign bit, lower 15 bits are magnitude."""
+            return (-1 if v & 0x8000 else 1) * (v & 0x7FFF)
+
+        x_mm = _sm(raw_x)
+        y_mm = -_sm(raw_y)   # sensor convention: negative y = in front → negate for display
+
+        # Empty slot
+        if x_mm == 0 and y_mm == 0:
+            return None
+
+        # Out-of-range: LD2450 max range ~6 m, discard anything beyond 9 m
+        if abs(x_mm) > 9000 or abs(y_mm) > 9000:
+            return None
 
         return Target(
             x     = round(x_mm / 1000.0, 3),   # mm → metres

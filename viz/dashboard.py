@@ -5,6 +5,8 @@ Always run via main.py
 """
 
 import sys
+import threading
+import queue
 from typing import Any
 
 import numpy as np
@@ -44,6 +46,10 @@ class Dashboard:
         # One history buffer per target slot (max 3 targets from LD2450)
         self.history: list[list[tuple[float, float]]] = [[] for _ in range(3)]
 
+        # Frame queue: background thread pushes, UI thread pops (non-blocking)
+        self.frame_queue: queue.Queue = queue.Queue(maxsize=2)
+        self._stop_event = threading.Event()
+
         # Qt app + window
         self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
         self.win = pg.GraphicsLayoutWidget(title="radar-room — live view")
@@ -70,10 +76,44 @@ class Dashboard:
         self.label = pg.LabelItem(justify='left')
         self.win.addItem(self.label, row=1, col=0)
 
-        # timer drives updates
+        # Start background frame reader thread
+        self._reader_thread = threading.Thread(target=self._frame_reader_loop, daemon=True)
+        self._reader_thread.start()
+
+        # timer drives UI updates (non-blocking)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self._update)
         self.timer.start(int(1000 / FPS))
+
+    def _frame_reader_loop(self) -> None:
+        """
+        Background thread: continuously reads frames from the sensor
+        and pushes them to the frame queue for the UI thread.
+        """
+        print("[dashboard] frame reader thread started")
+        frame_count = 0
+        while not self._stop_event.is_set():
+            try:
+                frame = self.source.next_frame()
+                frame_count += 1
+                # Drop oldest frame if queue is full (keep latest data flowing)
+                try:
+                    self.frame_queue.put_nowait(frame)
+                except queue.Full:
+                    try:
+                        self.frame_queue.get_nowait()
+                    except queue.Empty:
+                        pass
+                    self.frame_queue.put_nowait(frame)
+                
+                # Log every 10th frame
+                if frame_count % 10 == 0:
+                    print(f"[dashboard] reader: {frame_count} frames read, queue size: {self.frame_queue.qsize()}, targets: {len(frame.targets)}")
+            except Exception as e:
+                print(f"[dashboard] frame reader ERROR: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+                self._stop_event.set()
 
     def _setup_plot(self) -> None:
         p = self.plot
@@ -110,7 +150,16 @@ class Dashboard:
             p.addItem(lbl)
 
     def _update(self) -> None:
-        frame = self.source.next_frame()
+        """
+        UI timer callback (non-blocking). Fetches the latest frame from the queue.
+        Runs on the main Qt thread.
+        """
+        try:
+            frame = self.frame_queue.get_nowait()
+        except queue.Empty:
+            # No new frame yet — skip update, use last known state
+            return
+
         n     = len(frame.targets)
 
         for slot in range(3):
@@ -154,5 +203,12 @@ class Dashboard:
         self.label.setText(status)
 
     def run(self) -> None:
+        """
+        Starts the Qt event loop. Stops the background thread when the window closes.
+        """
         self.win.show()
-        sys.exit(self.app.exec())
+        try:
+            sys.exit(self.app.exec())
+        finally:
+            self._stop_event.set()
+            self._reader_thread.join(timeout=2.0)

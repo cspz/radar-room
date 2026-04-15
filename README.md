@@ -8,7 +8,7 @@
 
 A room that sees without cameras. Real-time human presence and motion visualization using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware.
 
-> **Note:** Waiting for hardware — tested only simulation as of 30 March 2026.
+> **Hardware validated** — April 2026. Real sensor streaming confirmed.
 
 
 ---
@@ -61,13 +61,47 @@ The Python pipeline:
 ```
 LD2450        ESP32
 ──────────────────────
-VCC (red)  →  VIN
-GND (blk)  →  GND
-TX  (grn)  →  GPIO16
-RX  (yel)  →  GPIO17
+5V  (blk)  →  5V
+GND (yel)  →  GND
+TX  (wht)  →  GPIO16
+RX  (red)  →  GPIO17
 ```
 
+> **Note:** Cable colors may vary by supplier. Always verify by reading the labels printed on the LD2450 board next to the JST connector before wiring.
+
 ESP32 connects to Mac via USB-C. No soldering required.
+
+### ESP32 Passthrough Firmware
+
+The CP2102 on the ESP32 dev board is hardwired to GPIO1/GPIO3, not GPIO16/17. You must flash a passthrough sketch once so the ESP32 forwards radar UART data to USB.
+
+1. Install [Arduino IDE](https://www.arduino.cc/en/software)
+2. Go to `Preferences` and add this URL to Additional Boards Manager URLs:
+   ```
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+3. Go to `Tools → Board → Boards Manager`, search `esp32 by Espressif Systems` and install
+4. Select `Tools → Board → ESP32 Arduino → ESP32 Dev Module`
+5. Select `Tools → Port → /dev/cu.usbserial-0001`
+6. Flash this sketch:
+
+```cpp
+#include <HardwareSerial.h>
+
+HardwareSerial RadarSerial(2);
+
+void setup() {
+  Serial.begin(256000);
+  RadarSerial.begin(256000, SERIAL_8N1, 16, 17);
+}
+
+void loop() {
+  while (RadarSerial.available()) Serial.write(RadarSerial.read());
+  while (Serial.available()) RadarSerial.write(Serial.read());
+}
+```
+
+Once flashed, the ESP32 acts as a permanent transparent bridge. You never need to touch it again.
 
 ---
 
@@ -120,14 +154,14 @@ SCENE = "walking"    # empty / sitting / walking / two_people
 Connect the LD2450 via ESP32 and USB-C. Find your serial port:
 
 ```bash
-ls /dev/tty.usb*
+ls /dev/cu.usb*
 ```
 
 Then in `main.py` set:
 
 ```python
 USE_REAL_SENSOR = True
-SERIAL_PORT     = "/dev/tty.usbserial-XXXX"
+SERIAL_PORT     = "/dev/cu.usbserial-0001"   # note: cu. not tty.
 ```
 
 Run:
@@ -167,6 +201,7 @@ Planned workflow:
 - ✅ Simulator with realistic physics-based scenes
 - ✅ Binary UART parser for HLK-LD2450
 - ✅ Real-time bird's-eye dashboard
+- ✅ Real hardware validated and streaming (April 2026)
 - ⬜ ML activity classifier
 - ⬜ Live inference overlay on dashboard
 - ⬜ Multi-sensor triangulation (3× LD2450)
