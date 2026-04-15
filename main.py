@@ -4,7 +4,7 @@ Main for the radar-room project.
 
 When hardware arrives:
   1. Set USE_REAL_SENSOR = True
-  2. Set SERIAL_PORT to your actual port (run: ls /dev/tty.usb* in terminal)
+  2. Set SERIAL_PORT to your actual port (run: ls /dev/cu.usb* in terminal)
 """
 
 from __future__ import annotations
