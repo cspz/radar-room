@@ -48,7 +48,7 @@ The Python pipeline:
 | Component | Details | Price |
 |---|---|---|
 | HLK-LD2450 | 24GHz FMCW radar, ±60° FOV, 8m range | ~€11 |
-| ESP32 WROOM-32D | CP2102 USB-UART bridge, USB-C | ~€5 |
+| ESP32 Development Board | CP2102 USB-UART bridge, USB-C | ~€5 |
 | Jumper wires | Female-female, 20cm | ~€2 |
 | **Total** | | **~€18** |
 
