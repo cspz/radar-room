@@ -6,7 +6,7 @@ import sys
 import time
 
 SERIAL_PORT = "/dev/cu.usbserial-0001"
-BAUD_RATE = 256000
+BAUD_RATE = 115200
 
 print(f"Attempting to connect to {SERIAL_PORT} at {BAUD_RATE} baud...")
 

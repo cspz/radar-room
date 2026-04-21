@@ -8,10 +8,6 @@ void setup() {
 }
 
 void loop() {
-  while (RadarSerial.available()) {
-    Serial.write(RadarSerial.read());
-  }
-  while (Serial.available()) {
-    RadarSerial.write(Serial.read());
-  }
+  while (RadarSerial.available()) Serial.write(RadarSerial.read());
+  while (Serial.available()) RadarSerial.write(Serial.read());
 }
