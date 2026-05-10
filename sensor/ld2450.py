@@ -18,6 +18,7 @@ Encoding note: x, y, and speed use sign-magnitude (not two's complement).
 """
 
 import serial
+import serial.tools.list_ports
 import struct
 import time
 from dataclasses import dataclass
@@ -52,9 +53,11 @@ class LD2450:
         self.baud  = baud
         self._ser  = None
         self._rx_buf = bytearray()
+        self._bytes_seen = 0
         # EMA state: dict of slot index → (x, y, speed)
         self._ema: dict[int, tuple[float, float, float]] = {}
         self._open()
+        self._probe_stream()
 
     def _open(self) -> None:
         try:
@@ -83,7 +86,8 @@ class LD2450:
         if waiting > FRAME_LENGTH * 4:
             # Read and discard everything except the last 2 frames
             discard = waiting - FRAME_LENGTH * 2
-            self._ser.read(discard)
+            dropped = self._ser.read(discard)
+            self._bytes_seen += len(dropped)
             self._rx_buf.clear()
 
     def _read_frame_bytes(self) -> bytes | None:
@@ -99,6 +103,7 @@ class LD2450:
             chunk = self._ser.read(self._ser.in_waiting or 1)
             if chunk:
                 self._rx_buf.extend(chunk)
+                self._bytes_seen += len(chunk)
 
             # keep buffer bounded
             if len(self._rx_buf) > FRAME_LENGTH * 8:
@@ -127,6 +132,33 @@ class LD2450:
                 del self._rx_buf[0]
 
         return None
+
+    def _probe_stream(self, timeout_s: float = 2.0) -> None:
+        """
+        Verify that valid LD2450 frames are actually present on this serial stream.
+        Fails fast with actionable guidance instead of silently returning empty frames.
+        """
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            if self._read_frame_bytes() is not None:
+                print("[ld2450] valid frames detected")
+                return
+
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        details = "\n".join(f"  - {p}" for p in ports) if ports else "  (none)"
+        self.close()
+        raise RuntimeError(
+            "[ld2450] connected but no valid LD2450 frames were detected.\n"
+            f"  → port: {self.port}\n"
+            f"  → baud: {self.baud}\n"
+            f"  → bytes observed: {self._bytes_seen}\n"
+            "  → likely causes:\n"
+            "     1) ESP32 passthrough sketch not flashed/running\n"
+            "     2) LD2450 TX/RX wiring mismatch on GPIO16/GPIO17\n"
+            "     3) wrong baud between firmware and Python\n"
+            "  → available serial ports:\n"
+            f"{details}"
+        )
 
     @staticmethod
     def _parse_target(data: bytes, offset: int) -> Target | None:

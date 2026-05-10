@@ -1,3 +1,4 @@
+// Passthrough — flash this for transparent UART bridge
 #include <HardwareSerial.h>
 
 HardwareSerial RadarSerial(2);
