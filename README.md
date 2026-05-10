@@ -17,8 +17,6 @@ A room that sees without cameras. Real-time human presence and motion visualizat
 
 A single HLK-LD2450 radar module streams target position and velocity data over UART to a Mac. A Python pipeline parses the binary frames and renders them live in a bird's-eye dashboard. An ML activity classifier is planned.
 
-No camera. No cloud. Everything runs locally.
-
 
 ## Simulation Demo
 
