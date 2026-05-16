@@ -8,13 +8,14 @@ the same Frame + Target objects as the simulator.
 Protocol reference: HLK-LD2450 datasheet
   - Frame header:  AA FF 03 00  (4 bytes)
   - Frame footer:  55 CC        (2 bytes)
-  - Frame length:  28 bytes total
+  - Frame length:  30 bytes total  (4 header + 3×8 target data + 2 footer)
   - Up to 3 targets per frame, each 8 bytes
 
 Encoding note: x, y, and speed use sign-magnitude (not two's complement).
-  MSB = sign bit, lower 15 bits = magnitude.
-  Y is reported negative for targets in front of the sensor.
-  Speed is the Doppler radial velocity in cm/s, computed internally by the sensor.
+  High byte bit 7 = sign bit: 1 = positive, 0 = negative.
+  Lower 15 bits = magnitude.
+  X: positive = right of sensor. Y: positive = in front of sensor (0–6000 mm).
+  Speed raw value × 10 = mm/s; dividing by 100 gives m/s.
 """
 
 import serial
@@ -31,7 +32,7 @@ from sensor.simulator import Target, Frame   # reuse same data structures
 
 FRAME_HEADER = bytes([0xAA, 0xFF, 0x03, 0x00])
 FRAME_FOOTER = bytes([0x55, 0xCC])
-FRAME_LENGTH = 28          # total bytes per frame
+FRAME_LENGTH = 30          # total bytes per frame: 4 header + 24 data + 2 footer
 TARGET_COUNT = 3           # max targets per frame
 TARGET_BYTES = 8           # bytes per target
 
@@ -169,11 +170,11 @@ class LD2450:
         raw_x, raw_y, raw_v, _ = struct.unpack_from('<HHHH', data, offset)
 
         def _sm(v: int) -> int:
-            """Sign-magnitude decode: MSB is sign bit, lower 15 bits are magnitude."""
-            return (-1 if v & 0x8000 else 1) * (v & 0x7FFF)
+            """Sign-magnitude decode: high-byte bit 7 = sign (1=positive, 0=negative)."""
+            return (1 if v & 0x8000 else -1) * (v & 0x7FFF)
 
         x_mm  = _sm(raw_x)
-        y_mm  = -_sm(raw_y)
+        y_mm  = _sm(raw_y)
         v_cms = _sm(raw_v)
 
         if x_mm == 0 and y_mm == 0:
