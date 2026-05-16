@@ -4,7 +4,8 @@
 HardwareSerial RadarSerial(2);
 
 void setup() {
-  Serial.begin(256000);
+  Serial.begin(115200);
+  Serial.println("radar_passthrough ready");
   RadarSerial.begin(256000, SERIAL_8N1, 16, 17);
 }
 

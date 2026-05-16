@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import sys
+
 import traceback
 from collections import Counter
 
@@ -10,7 +10,7 @@ import serial.tools.list_ports
 
 
 SERIAL_PORT = "/dev/cu.usbserial-0001"
-BAUD_RATE = 256000
+BAUD_RATE = 115200
 SAMPLE_SECONDS = 2.0
 
 

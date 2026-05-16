@@ -17,19 +17,19 @@ import serial.tools.list_ports
 
 
 DEFAULT_PORT = "/dev/cu.usbserial-0001"
-DEFAULT_BAUD = 256000
+DEFAULT_BAUD = 115200
 DEFAULT_SECONDS = 2.0
 
 # Common mmWave frame signatures used by HLK modules.
 SIGNATURES = [
-    ("LD2450_AAFF0300_55CC_28B", bytes([0xAA, 0xFF, 0x03, 0x00]), bytes([0x55, 0xCC]), 28),
+    ("LD2450_AAFF0300_55CC_30B", bytes([0xAA, 0xFF, 0x03, 0x00]), bytes([0x55, 0xCC]), 30),
     ("HLK_FDFCFBFA_04030201", bytes([0xFD, 0xFC, 0xFB, 0xFA]), bytes([0x04, 0x03, 0x02, 0x01]), None),
     ("HLK_F4F3F2F1_F8F7F6F5", bytes([0xF4, 0xF3, 0xF2, 0xF1]), bytes([0xF8, 0xF7, 0xF6, 0xF5]), None),
 ]
 
 
 def capture(port: str, baud: int, seconds: float) -> bytes:
-    with serial.Serial(port, baud, timeout=0.2) as ser:
+    with serial.Serial(port, baud, timeout=0.2, dsrdtr=False, rtscts=False) as ser:
         data = bytearray()
         deadline = time.time() + seconds
         while time.time() < deadline:

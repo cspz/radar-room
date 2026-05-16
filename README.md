@@ -8,7 +8,7 @@
 
 A room that sees without cameras. Real-time human presence and motion visualization using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware.
 
-> **Hardware validated** — April 2026. Real sensor streaming confirmed.
+> **Status — May 2026:** Hardware integration in progress. Simulator and dashboard work. ESP32 passthrough sketch runs and is confirmed at 115200 baud. LD2450 wiring under investigation — sensor data not yet flowing end-to-end.
 
 
 ---
@@ -89,8 +89,9 @@ The CP2102 on the ESP32 dev board is hardwired to GPIO1/GPIO3, not GPIO16/17. Yo
 HardwareSerial RadarSerial(2);
 
 void setup() {
-  Serial.begin(256000);
-  RadarSerial.begin(256000, SERIAL_8N1, 16, 17);
+  Serial.begin(115200);          // USB serial — CH340 on ESP32-D caps at 115200
+  Serial.println("radar_passthrough ready");
+  RadarSerial.begin(256000, SERIAL_8N1, 16, 17);  // LD2450 native baud
 }
 
 void loop() {
@@ -202,7 +203,7 @@ Planned workflow:
 - ✅ Simulator with realistic physics-based scenes
 - ✅ Binary UART parser for HLK-LD2450
 - ✅ Real-time bird's-eye dashboard
-- ✅ Real hardware validated and streaming (April 2026)
+- 🔧 Real hardware integration in progress — ESP32 passthrough confirmed, LD2450 wiring under investigation
 - ⬜ ML activity classifier
 - ⬜ Live inference overlay on dashboard
 - ⬜ Multi-sensor triangulation (3× LD2450)

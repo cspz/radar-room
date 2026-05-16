@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 USE_REAL_SENSOR = True                        # change to True if hardware available
 SERIAL_PORT     = "/dev/cu.usbserial-0001"
-BAUD_RATE       = 256000                       # LD2450 baud rate (lowered for stability)
+BAUD_RATE       = 115200                       # USB serial baud (CH340 on ESP32-D caps here)
 FPS             = 10.0                         # frames per second
 
 # ── SCENE (only used in simulator mode) ──────────────────────────────────────

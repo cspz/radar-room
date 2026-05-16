@@ -49,7 +49,7 @@ class LD2450:
     Drop-in replacement for Simulator — same next_frame() and stream() interface.
     """
 
-    def __init__(self, port: str, baud: int = 256000) -> None:
+    def __init__(self, port: str, baud: int = 115200) -> None:
         self.port  = port
         self.baud  = baud
         self._ser  = None
@@ -68,7 +68,9 @@ class LD2450:
                 bytesize  = serial.EIGHTBITS,
                 parity    = serial.PARITY_NONE,
                 stopbits  = serial.STOPBITS_ONE,
-                timeout   = 0.05
+                timeout   = 0.05,
+                dsrdtr    = False,
+                rtscts    = False,
             )
             print(f"[ld2450] opened {self.port} at {self.baud} baud")
         except serial.SerialException as e:
