@@ -6,7 +6,7 @@
 
 
 
-A room that sees without cameras. Real-time human presence and motion visualization using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware.
+Real-time human presence and motion visualization using a 24GHz FMCW radar sensor, running fully local for under €20 of hardware.
 
 > **Status — May 2026:** Hardware integration in progress. Simulator and dashboard work. ESP32 passthrough sketch runs and is confirmed at 115200 baud. LD2450 wiring under investigation — sensor data not yet flowing end-to-end.
 
